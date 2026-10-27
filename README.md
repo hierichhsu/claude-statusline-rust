@@ -10,12 +10,12 @@ A fast, segment-based statusline for Claude Code, written in Rust.
 
 **macOS / Linux / Git Bash:**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rainday/claude-statusline-rust/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/hierichhsu/claude-statusline-rust/main/install.sh | bash
 ```
 
 **Windows (PowerShell):** open Git Bash first, then run the command above. Or:
 ```powershell
-& "C:\Program Files\Git\bin\bash.exe" -c "curl -fsSL https://raw.githubusercontent.com/rainday/claude-statusline-rust/main/install.sh | bash"
+& "C:\Program Files\Git\bin\bash.exe" -c "curl -fsSL https://raw.githubusercontent.com/hierichhsu/claude-statusline-rust/main/install.sh | bash"
 ```
 
 ### cargo install
@@ -39,22 +39,22 @@ Then manually add to `~/.claude/settings.json`:
 
 In your Claude Code session, just ask:
 
-> Install claude-statusline-rs by running: `curl -fsSL https://raw.githubusercontent.com/rainday/claude-statusline-rust/main/install.sh | bash`
+> Install claude-statusline-rs by running: `curl -fsSL https://raw.githubusercontent.com/hierichhsu/claude-statusline-rust/main/install.sh | bash`
 
 ## Uninstall
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rainday/claude-statusline-rust/main/install.sh | bash -s uninstall
+curl -fsSL https://raw.githubusercontent.com/hierichhsu/claude-statusline-rust/main/install.sh | bash -s uninstall
 ```
 
 Or from Claude Code, ask:
 
-> Uninstall claude-statusline-rs by running: `curl -fsSL https://raw.githubusercontent.com/rainday/claude-statusline-rust/main/install.sh | bash -s uninstall`
+> Uninstall claude-statusline-rs by running: `curl -fsSL https://raw.githubusercontent.com/hierichhsu/claude-statusline-rust/main/install.sh | bash -s uninstall`
 
 ## Display
 
 ```
-📁 project │ 🌿 main* │ 🤖 Opus 4.6 │ ✍️ 32% │ ● thinking │ ◑ high
+📁 project │ 🌿 main*3 ↑1 ⎇feat :3000 │ 🤖 Opus 4.6 (high) 32% │ ● thinking
 current  ●●●○○○○○○○  28%  ↻ 7:00pm
 weekly   ●●●●●●●●○○  79%  ↻ mar 10, 10:00am
 🔄 2 tasks (1 in_progress, 1 pending)

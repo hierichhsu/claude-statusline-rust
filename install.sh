@@ -2,7 +2,7 @@
 set -e
 
 # ── Configuration ─────────────────────────────────────────────────────
-REPO="rainday/claude-statusline-rust"
+REPO="hierichhsu/claude-statusline-rust"
 INSTALL_DIR="$HOME/.claude/bin"
 BINARY_NAME="claude-statusline-rs"
 SETTINGS_FILE="$HOME/.claude/settings.json"
