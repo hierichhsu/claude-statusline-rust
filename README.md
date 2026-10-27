@@ -65,11 +65,9 @@ weekly   ●●●●●●●●○○  79%  ↻ mar 10, 10:00am
 | Segment | Description |
 |---------|-------------|
 | Directory | Current folder name |
-| Git | Branch + dirty indicator, worktree name (`⎇name`) in linked worktrees, and dev server port (`:PORT`) from a `.dev-port` file at the repo root |
-| Model | Current Claude model |
-| Context Window | Token usage % (color-coded) |
+| Git | Branch, changed-file count (`*3`), ahead/behind upstream (`↑2 ↓1`), worktree name (`⎇name`) in linked worktrees, and dev server port (`:PORT`) from a `.dev-port` file at the repo root, marked `✗` when nothing listens on it |
+| Model | Current Claude model, effort level (`(high)`), and context usage % colored green / yellow / orange / red at 50 / 75 / 90 |
 | Thinking | Green dot when thinking, gray when not |
-| Effort | Effort level from settings |
 | Usage | 5-hour and 7-day rate limit bars (OAuth API) |
 | Tasks | Active background tasks from `~/.claude/tasks/` |
 
@@ -86,7 +84,7 @@ Edit `~/.claude/statusline-rs/config.toml`:
 separator = " │ "
 
 [segments]
-enabled = ["directory", "git", "model", "context_window", "thinking", "effort", "usage", "tasks"]
+enabled = ["directory", "git", "model", "thinking", "usage", "tasks"]
 
 [git]
 show_worktree = true   # append ⎇<name> when inside a linked git worktree

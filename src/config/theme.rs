@@ -28,7 +28,6 @@ pub struct ResolvedTheme {
     pub directory_text_ansi: u8, // bright green (10)
     pub git_ansi: u8,            // bright blue (12)
     pub model_ansi: u8,          // bright cyan (14)
-    pub ctx_ansi: u8,            // bright magenta (13)
     pub thinking_on_ansi: u8,    // bright green (10)
     pub thinking_off_ansi: u8,   // white (7)
     pub effort_dim_ansi: u8,     // white (7)
@@ -62,7 +61,6 @@ impl ResolvedTheme {
             directory_text_ansi: 10, // bright green
             git_ansi: 12,            // bright blue
             model_ansi: 14,          // bright cyan
-            ctx_ansi: 13,            // bright magenta
             thinking_on_ansi: 10,    // bright green
             thinking_off_ansi: 7,    // white
             effort_dim_ansi: 7,      // white

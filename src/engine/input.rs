@@ -8,7 +8,7 @@ pub struct InputData {
     #[allow(dead_code)]
     pub session: Option<Session>,
     pub thinking: Option<ThinkingField>,
-    pub output_style: Option<OutputStyle>,
+    pub effort: Option<Effort>,
     #[allow(dead_code)]
     pub cost: Option<Cost>,
 }
@@ -58,9 +58,10 @@ pub struct Session {
     pub start_time: Option<String>,
 }
 
+/// Reasoning effort for the current turn: `{ "effort": { "level": "high" } }`.
 #[derive(Debug, Deserialize)]
-pub struct OutputStyle {
-    pub name: Option<String>,
+pub struct Effort {
+    pub level: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -93,7 +94,8 @@ mod tests {
             },
             "cwd": "/home/user/project",
             "session": { "start_time": "2026-03-10T12:00:00Z" },
-            "thinking": true
+            "thinking": true,
+            "effort": { "level": "high" }
         }"#;
         let data = InputData::from_json(json).unwrap();
         assert_eq!(data.model.unwrap().display_name.unwrap(), "Opus 4.6");
@@ -101,21 +103,22 @@ mod tests {
             data.context_window.unwrap().context_window_size.unwrap(),
             200000
         );
-        assert_eq!(data.thinking.unwrap().is_on(), true);
+        assert!(data.thinking.unwrap().is_on());
+        assert_eq!(data.effort.unwrap().level.unwrap(), "high");
     }
 
     #[test]
     fn test_parse_thinking_object_schema() {
         let json = r#"{ "thinking": { "enabled": true } }"#;
         let data = InputData::from_json(json).unwrap();
-        assert_eq!(data.thinking.unwrap().is_on(), true);
+        assert!(data.thinking.unwrap().is_on());
     }
 
     #[test]
     fn test_parse_thinking_object_disabled() {
         let json = r#"{ "thinking": { "enabled": false } }"#;
         let data = InputData::from_json(json).unwrap();
-        assert_eq!(data.thinking.unwrap().is_on(), false);
+        assert!(!data.thinking.unwrap().is_on());
     }
 
     #[test]
@@ -125,5 +128,6 @@ mod tests {
         assert!(data.model.is_none());
         assert_eq!(data.cwd.unwrap(), "/tmp");
         assert!(data.thinking.is_none());
+        assert!(data.effort.is_none());
     }
 }

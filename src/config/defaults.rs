@@ -7,9 +7,7 @@ pub fn enabled_segments() -> Vec<String> {
         "directory".into(),
         "git".into(),
         "model".into(),
-        "context_window".into(),
         "thinking".into(),
-        "effort".into(),
         "usage".into(),
         "tasks".into(),
     ]
