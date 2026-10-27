@@ -54,7 +54,7 @@ Or from Claude Code, ask:
 ## Display
 
 ```
-📁 project │ 🌿 main*3 ↑1 ⎇feat :3000 │ 🤖 Opus 4.6 (high) 32% │ ● thinking | tasks: 2
+📁 project │ 🌿 main*3 ↑1 ⎇feat :3000 │ 🤖 Opus 4.6 (high) 32% │ ● thinking
 current  ●●●○○○○○○○  28%  ↻ 7:00pm
 weekly   ●●●●●●●●○○  79%  ↻ mar 10, 10:00am
 ```
@@ -66,7 +66,7 @@ weekly   ●●●●●●●●○○  79%  ↻ mar 10, 10:00am
 | Directory | Current folder name |
 | Git | Branch, changed-file count (`*3`), ahead/behind upstream (`↑2 ↓1`), worktree name (`⎇name`) in linked worktrees, and dev server port (`:PORT`) from a `.dev-port` file at the repo root, marked `✗` when nothing listens on it |
 | Model | Current Claude model, effort level (`(high)`), and context usage % colored green / yellow / orange / red at 50 / 75 / 90 |
-| Thinking | Green dot when thinking, gray when not, plus the count of active background tasks from `~/.claude/tasks/` when any are running |
+| Thinking | Green dot when thinking, gray when not |
 | Usage | 5-hour and 7-day rate limit bars (OAuth API) |
 
 ### Colors (Morandi Palette)

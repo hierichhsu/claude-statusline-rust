@@ -17,7 +17,6 @@ pub struct ThemeColors {
     pub usage_weekly_fill: Option<String>,
     pub usage_empty: Option<String>,
     pub reset_time: Option<String>,
-    pub tasks: Option<String>,
     pub separator: Option<String>,
 }
 
@@ -37,7 +36,6 @@ pub struct ResolvedTheme {
     pub usage_weekly_fill: String,
     pub usage_empty: String,
     pub reset_time: String,
-    pub tasks: String,
     // Legacy hex (for usage segment and other RGB needs)
     pub directory: String,
     pub git: String,
@@ -70,7 +68,6 @@ impl ResolvedTheme {
             usage_weekly_fill: "#D4B896".into(),
             usage_empty: "#4A4A4A".into(),
             reset_time: "#8B8B8B".into(),
-            tasks: "#A0B9C6".into(),
             // Legacy hex
             directory: "#A0B9C6".into(),
             git: "#A0B9C6".into(),
@@ -112,7 +109,6 @@ impl ResolvedTheme {
             apply!(usage_weekly_fill);
             apply!(usage_empty);
             apply!(reset_time);
-            apply!(tasks);
             apply!(separator);
         }
         theme

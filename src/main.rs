@@ -75,6 +75,4 @@ fn main() {
             println!("{}{}", out.text, RESET);
         }
     }
-
-    // Tasks count is now shown inline with the thinking segment on line 1
 }

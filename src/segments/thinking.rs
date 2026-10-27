@@ -1,8 +1,7 @@
 use crate::config::theme::ResolvedTheme;
 use crate::engine::input::InputData;
-use crate::engine::renderer::{ansi_bold, ansi_fg};
+use crate::engine::renderer::ansi_bold;
 use crate::engine::segment::SegmentOutput;
-use crate::segments::tasks::TasksSegment;
 
 pub struct ThinkingSegment;
 
@@ -14,22 +13,11 @@ impl ThinkingSegment {
         } else {
             theme.thinking_off_ansi
         };
-        let mut text = ansi_bold("● thinking", ansi);
-
-        // Append active task count inline
-        if let Some(count) = TasksSegment.active_count() {
-            if count > 0 {
-                text.push_str(&ansi_fg(
-                    &format!(" | tasks: {}", count),
-                    theme.effort_dim_ansi,
-                ));
-            }
-        }
-
-        Some(SegmentOutput { text })
+        Some(SegmentOutput {
+            text: ansi_bold("● thinking", ansi),
+        })
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
