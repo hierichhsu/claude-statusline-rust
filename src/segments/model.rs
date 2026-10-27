@@ -21,6 +21,8 @@ impl ModelSegment {
             .as_ref()
             .and_then(|c| c.used_percentage)
         {
+            // Claude Code may send a decimal (docs strip it with `cut -d.`); round, do not reject.
+            let pct = pct.round() as u64;
             let colored = rgb_fg(&format!("{}%", pct), ctx_color(pct, theme));
             parts.push(format!("\x1b[1m{}", colored));
         }
@@ -93,5 +95,16 @@ mod tests {
         assert_eq!(ctx_color(75, &theme), theme.ctx_orange);
         assert_eq!(ctx_color(90, &theme), theme.ctx_red);
         assert_eq!(ctx_color(100, &theme), theme.ctx_red);
+    }
+
+    #[test]
+    fn test_decimal_percentage_is_rounded_not_rejected() {
+        let input = InputData::from_json(
+            r#"{ "model": { "display_name": "M" }, "context_window": { "used_percentage": 23.5 } }"#,
+        )
+        .unwrap();
+        let theme = ResolvedTheme::morandi();
+        let output = ModelSegment.render(&input, &theme).unwrap();
+        assert!(output.text.contains("24%"));
     }
 }

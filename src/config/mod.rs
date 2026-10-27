@@ -125,7 +125,7 @@ mod tests {
     fn test_default_config() {
         let cfg = Config::default();
         assert_eq!(cfg.general.separator, " │ ");
-        assert_eq!(cfg.segments.enabled.len(), 6);
+        assert_eq!(cfg.segments.enabled.len(), 5);
         assert_eq!(cfg.theme.name, "morandi");
         assert_eq!(cfg.usage.cache_ttl_secs, 60);
     }

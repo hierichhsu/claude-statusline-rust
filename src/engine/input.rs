@@ -41,7 +41,7 @@ pub struct ContextWindow {
     pub context_window_size: Option<u64>,
     #[allow(dead_code)]
     pub current_usage: Option<CurrentUsage>,
-    pub used_percentage: Option<u64>,
+    pub used_percentage: Option<f64>,
 }
 
 #[derive(Debug, Deserialize)]

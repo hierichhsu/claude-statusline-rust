@@ -9,7 +9,6 @@ pub fn enabled_segments() -> Vec<String> {
         "model".into(),
         "thinking".into(),
         "usage".into(),
-        "tasks".into(),
     ]
 }
 

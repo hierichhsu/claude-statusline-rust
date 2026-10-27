@@ -31,16 +31,29 @@ impl GitSegment {
             label.push_str(&format!(" \u{2193}{}", status.behind));
         }
 
+        // One rev-parse serves both the worktree name and the port file lookup.
+        let paths = if git_cfg.show_worktree || !git_cfg.port_file.is_empty() {
+            rev_parse_paths(cwd)
+        } else {
+            None
+        };
+
         // Worktree name (only when in a linked worktree).
         if git_cfg.show_worktree {
-            if let Some(wt) = worktree_name(cwd) {
+            if let Some(wt) = paths
+                .as_ref()
+                .and_then(|(git_dir, _)| worktree_name(git_dir))
+            {
                 label.push_str(&format!(" \u{2387}{}", wt));
             }
         }
 
         // Dev server port from convention file at repo/worktree root.
         if !git_cfg.port_file.is_empty() {
-            if let Some(port) = read_port(cwd, &git_cfg.port_file) {
+            if let Some(port) = paths
+                .as_ref()
+                .and_then(|(_, root)| read_port(root, &git_cfg.port_file))
+            {
                 let mark = if port_alive(port) { "" } else { "\u{2717}" };
                 label.push_str(&format!(" :{}{}", port, mark));
             }
@@ -106,22 +119,25 @@ fn parse_porcelain_v2(out: &str) -> Option<GitStatus> {
     })
 }
 
-/// Returns the worktree name when cwd is a linked worktree, else None.
-/// In a linked worktree `git rev-parse --git-dir` points at
-/// `.../.git/worktrees/<name>`; the main worktree does not.
-fn worktree_name(cwd: &str) -> Option<String> {
+/// One `git rev-parse` call returning (git_dir, repo_root), forward slashes.
+fn rev_parse_paths(cwd: &str) -> Option<(String, String)> {
     let output = Command::new("git")
-        .args(["rev-parse", "--git-dir"])
+        .args(["rev-parse", "--git-dir", "--show-toplevel"])
         .current_dir(cwd)
         .output()
         .ok()?;
     if !output.status.success() {
         return None;
     }
-    let git_dir = String::from_utf8(output.stdout)
-        .ok()?
-        .trim()
-        .replace('\\', "/");
+    let text = String::from_utf8(output.stdout).ok()?;
+    let mut lines = text.lines().map(|l| l.trim().replace('\\', "/"));
+    Some((lines.next()?, lines.next()?))
+}
+
+/// Returns the worktree name when `git_dir` is a linked worktree, else None.
+/// In a linked worktree the git dir is `.../.git/worktrees/<name>`; the main
+/// worktree's is not.
+fn worktree_name(git_dir: &str) -> Option<String> {
     let name = git_dir.rsplit_once("/worktrees/")?.1;
     // `name` is the trailing path component after `/worktrees/`.
     let name = name.split('/').next()?.trim();
@@ -132,18 +148,9 @@ fn worktree_name(cwd: &str) -> Option<String> {
     }
 }
 
-/// Reads the dev port from `<repo-root>/<port_file>` (trimmed first line).
-fn read_port(cwd: &str, port_file: &str) -> Option<u16> {
-    let output = Command::new("git")
-        .args(["rev-parse", "--show-toplevel"])
-        .current_dir(cwd)
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    let root = String::from_utf8(output.stdout).ok()?.trim().to_string();
-    let content = std::fs::read_to_string(Path::new(&root).join(port_file)).ok()?;
+/// Reads the dev port from `<root>/<port_file>` (trimmed first line).
+fn read_port(root: &str, port_file: &str) -> Option<u16> {
+    let content = std::fs::read_to_string(Path::new(root).join(port_file)).ok()?;
     // parsing as u16 rejects anything a stray file could use to inject escape codes
     content.lines().next()?.trim().parse().ok()
 }
@@ -217,5 +224,14 @@ mod tests {
         assert!(port_alive(port));
         drop(listener);
         assert!(!port_alive(port));
+    }
+
+    #[test]
+    fn test_worktree_name_from_git_dir() {
+        assert_eq!(
+            worktree_name("C:/repo/.git/worktrees/feat-x").as_deref(),
+            Some("feat-x")
+        );
+        assert_eq!(worktree_name("/home/u/repo/.git"), None);
     }
 }
