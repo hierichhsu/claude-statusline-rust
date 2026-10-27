@@ -104,7 +104,8 @@ PYSCRIPT
 
         local native_settings native_bin
         native_settings="$(to_native_path "$SETTINGS_FILE")"
-        native_bin="$(to_native_path "$bin_path")"
+        # Quoted so a space in the path (e.g. C:/Users/Eric Hsu) survives Git Bash.
+        native_bin="\"$(to_native_path "$bin_path")\""
 
         if command -v node &>/dev/null; then
             node -e "$node_code" "$native_settings" "$native_bin"
@@ -115,7 +116,7 @@ PYSCRIPT
             echo "  Could not auto-configure settings (node/python3 not found)."
             echo "  Please add the following to $SETTINGS_FILE manually:"
             echo ""
-            echo "    \"statusLine\": { \"type\": \"command\", \"command\": \"$bin_path\" }"
+            echo "    \"statusLine\": { \"type\": \"command\", \"command\": \"\\\"$bin_path\\\"\" }"
             echo ""
             return
         fi
