@@ -6,6 +6,7 @@ pub fn enabled_segments() -> Vec<String> {
     vec![
         "directory".into(),
         "git".into(),
+        "servers".into(),
         "model".into(),
         "thinking".into(),
         "usage".into(),
@@ -14,10 +15,6 @@ pub fn enabled_segments() -> Vec<String> {
 
 pub fn git_show_worktree() -> bool {
     true
-}
-
-pub fn git_port_file() -> String {
-    ".dev-port".into()
 }
 
 pub fn theme_name() -> String {

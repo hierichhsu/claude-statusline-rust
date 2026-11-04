@@ -3,10 +3,7 @@ use crate::config::GitConfig;
 use crate::engine::input::InputData;
 use crate::engine::renderer::ansi_bold;
 use crate::engine::segment::SegmentOutput;
-use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, TcpStream};
-use std::path::Path;
 use std::process::Command;
-use std::time::Duration;
 
 pub struct GitSegment;
 
@@ -31,31 +28,10 @@ impl GitSegment {
             label.push_str(&format!(" \u{2193}{}", status.behind));
         }
 
-        // One rev-parse serves both the worktree name and the port file lookup.
-        let paths = if git_cfg.show_worktree || !git_cfg.port_file.is_empty() {
-            rev_parse_paths(cwd)
-        } else {
-            None
-        };
-
         // Worktree name (only when in a linked worktree).
         if git_cfg.show_worktree {
-            if let Some(wt) = paths
-                .as_ref()
-                .and_then(|(git_dir, _)| worktree_name(git_dir))
-            {
+            if let Some(wt) = git_dir(cwd).and_then(|d| worktree_name(&d)) {
                 label.push_str(&format!(" \u{2387}{}", wt));
-            }
-        }
-
-        // Dev server port from convention file at repo/worktree root.
-        if !git_cfg.port_file.is_empty() {
-            if let Some(port) = paths
-                .as_ref()
-                .and_then(|(_, root)| read_port(root, &git_cfg.port_file))
-            {
-                let mark = if port_alive(port) { "" } else { "\u{2717}" };
-                label.push_str(&format!(" :{}{}", port, mark));
             }
         }
 
@@ -119,10 +95,10 @@ fn parse_porcelain_v2(out: &str) -> Option<GitStatus> {
     })
 }
 
-/// One `git rev-parse` call returning (git_dir, repo_root), forward slashes.
-fn rev_parse_paths(cwd: &str) -> Option<(String, String)> {
+/// `git rev-parse --git-dir`, forward slashes.
+fn git_dir(cwd: &str) -> Option<String> {
     let output = Command::new("git")
-        .args(["rev-parse", "--git-dir", "--show-toplevel"])
+        .args(["rev-parse", "--git-dir"])
         .current_dir(cwd)
         .output()
         .ok()?;
@@ -130,8 +106,7 @@ fn rev_parse_paths(cwd: &str) -> Option<(String, String)> {
         return None;
     }
     let text = String::from_utf8(output.stdout).ok()?;
-    let mut lines = text.lines().map(|l| l.trim().replace('\\', "/"));
-    Some((lines.next()?, lines.next()?))
+    Some(text.lines().next()?.trim().replace('\\', "/"))
 }
 
 /// Returns the worktree name when `git_dir` is a linked worktree, else None.
@@ -146,26 +121,6 @@ fn worktree_name(git_dir: &str) -> Option<String> {
     } else {
         Some(name.to_string())
     }
-}
-
-/// Reads the dev port from `<root>/<port_file>` (trimmed first line).
-fn read_port(root: &str, port_file: &str) -> Option<u16> {
-    let content = std::fs::read_to_string(Path::new(root).join(port_file)).ok()?;
-    // parsing as u16 rejects anything a stray file could use to inject escape codes
-    content.lines().next()?.trim().parse().ok()
-}
-
-/// True when something accepts a TCP connection on the port, over IPv4 or IPv6
-/// (Node 17+ binds `localhost` to ::1 on Windows).
-fn port_alive(port: u16) -> bool {
-    let timeout = Duration::from_millis(50);
-    let addrs: [SocketAddr; 2] = [
-        (Ipv4Addr::LOCALHOST, port).into(),
-        (Ipv6Addr::LOCALHOST, port).into(),
-    ];
-    addrs
-        .iter()
-        .any(|addr| TcpStream::connect_timeout(addr, timeout).is_ok())
 }
 
 #[cfg(test)]
@@ -215,15 +170,6 @@ mod tests {
     fn test_parse_ignores_ignored_entries() {
         let out = "# branch.oid abc\n# branch.head main\n! target/\n";
         assert_eq!(parse_porcelain_v2(out).unwrap().changed, 0);
-    }
-
-    #[test]
-    fn test_port_alive_detects_listener() {
-        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-        let port = listener.local_addr().unwrap().port();
-        assert!(port_alive(port));
-        drop(listener);
-        assert!(!port_alive(port));
     }
 
     #[test]

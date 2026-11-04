@@ -64,7 +64,8 @@ weekly   ●●●●●●●●○○  79%  ↻ mar 10, 10:00am
 | Segment | Description |
 |---------|-------------|
 | Directory | Current folder name |
-| Git | Branch, changed-file count (`*3`), ahead/behind upstream (`↑2 ↓1`), worktree name (`⎇name`) in linked worktrees, and dev server port (`:PORT`) from a `.dev-port` file at the repo root, marked `✗` when nothing listens on it |
+| Git | Branch, changed-file count (`*3`), ahead/behind upstream (`↑2 ↓1`), and worktree name (`⎇name`) in linked worktrees |
+| Servers | Ports this worktree's dev servers listen on (`⚡:3000 :5173`), plus how many other dev servers run on the machine (`+2`). Hidden when none run |
 | Model | Current Claude model, effort level (`(high)`), and context usage % colored green / yellow / orange / red at 50 / 75 / 90 |
 | Thinking | Green dot when thinking, gray when not |
 | Usage | 5-hour and 7-day rate limit bars (OAuth API) |
@@ -82,11 +83,10 @@ Edit `~/.claude/statusline-rs/config.toml`:
 separator = " │ "
 
 [segments]
-enabled = ["directory", "git", "model", "thinking", "usage"]
+enabled = ["directory", "git", "servers", "model", "thinking", "usage"]
 
 [git]
 show_worktree = true   # append ⎇<name> when inside a linked git worktree
-port_file = ".dev-port" # file read from repo root to show a dev server port; "" disables
 
 [theme]
 name = "morandi"
@@ -95,15 +95,24 @@ name = "morandi"
 cache_ttl_secs = 60
 ```
 
-### Dev server port
+### Dev servers
 
-To show a running backend's port, have your dev script write it to `.dev-port` at the repo/worktree root:
+Nothing to set up: the segment reads the OS TCP listen table, so a server shows up however it was started (background task, your own terminal, an orphan whose shell is gone). A listener belongs to this worktree when it, or a runtime parent above it (npm → cmd → vite, wrangler → workerd), has its cwd inside the worktree or names the worktree path in its command line. Worktrees nested inside it (`.claude/worktrees/…`) keep their own servers. Claude Code and its MCP servers are left out.
 
-```json
-"dev": "echo $PORT > .dev-port && vite --port $PORT"
+"Other" counts dev runtimes only (node, bun, deno, python, workerd, ruby, php, java, Docker, WSL) on ports ≥ 1024, so system services do not inflate it. Docker/WSL ports, and processes started as administrator, cannot be tied to a repo and only appear there.
+
+```bash
+claude-statusline-rs servers               # list this worktree's servers and the others, with cwd and command
+claude-statusline-rs servers --kill        # kill this worktree's server trees
+claude-statusline-rs servers --kill --all  # also kill other repos' dev servers (never Docker/WSL)
+claude-statusline-rs servers --cwd <path>  # inspect another worktree
 ```
 
-Add `.dev-port` to `.gitignore`. The statusline reads the first line and only displays it if it's all digits.
+To clean up when a session ends, add a `SessionEnd` hook; `--hook` takes the worktree from the hook's stdin JSON and does nothing without it:
+
+```json
+"SessionEnd": [{ "hooks": [{ "type": "command", "command": "\"C:/Users/<you>/.claude/bin/claude-statusline-rs.exe\" servers --kill --hook", "timeout": 15 }] }]
+```
 
 ### Custom Colors
 
