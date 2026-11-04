@@ -26,6 +26,7 @@ fn main() {
             kill_orphans();
             return;
         }
+        let mut session = None;
         if hook {
             let mut raw = String::new();
             io::stdin().read_to_string(&mut raw).unwrap_or(0);
@@ -35,8 +36,14 @@ fn main() {
                 eprintln!("--hook: no cwd in stdin JSON, nothing done");
                 return;
             }
+            // only this session's own servers: the user's terminal and other sessions share the worktree
+            session = servers::session_pid();
+            if session.is_none() {
+                eprintln!("--hook: not running under a Claude session, nothing done");
+                return;
+            }
         }
-        servers_command(kill, all, cwd);
+        servers_command(kill, all, cwd, session);
         return;
     }
 
@@ -135,8 +142,9 @@ fn kill_orphans() {
     }
 }
 
-/// `servers`: list, or kill, the dev servers attributed to a worktree.
-fn servers_command(kill: bool, all: bool, cwd: Option<String>) {
+/// `servers`: list, or kill, the dev servers attributed to a worktree;
+/// with `session`, kill only those that Claude session started.
+fn servers_command(kill: bool, all: bool, cwd: Option<String>, session: Option<u32>) {
     let cwd = cwd.unwrap_or_else(|| {
         std::env::current_dir()
             .map(|d| d.to_string_lossy().into_owned())
@@ -182,6 +190,9 @@ fn servers_command(kill: bool, all: bool, cwd: Option<String>) {
     let mut targets: Vec<&servers::Listener> = mine;
     if all {
         targets.extend(others.into_iter().filter(|l| servers::killable(l)));
+    }
+    if let Some(s) = session {
+        targets = scan.started_by(targets, s);
     }
     // one kill per tree: several ports can share a top process
     let mut tops: Vec<u32> = targets.iter().map(|l| l.top().pid).collect();

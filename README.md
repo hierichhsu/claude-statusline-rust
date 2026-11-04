@@ -111,7 +111,7 @@ claude-statusline-rs servers --cwd <path>  # inspect another worktree
 
 An **orphan** (Windows only) is a dev server whose ancestry breaks before it reaches a long-lived root (Explorer, a service host, or Claude): the shell, terminal or Claude session that started it is gone, for example after a crash or a closed terminal. The listing marks these `(orphan)`. Servers that a live session or an open terminal started are left alone. A server deliberately detached with `start` from a shell that has since closed also counts as an orphan.
 
-Two hooks clean up automatically. SessionEnd kills the ending session's own servers; `--hook` takes the worktree from the hook's stdin JSON and does nothing without it. SessionStart sweeps the orphans that sessions which did not end cleanly left behind:
+Two hooks clean up automatically. SessionEnd kills the ending session's own servers: those in its worktree whose process tree descends from that Claude process. Servers in the same worktree started from your own terminal or by another session are left alone. `--hook` takes the worktree from the hook's stdin JSON and does nothing without it, or when it is not running under a Claude session. SessionStart sweeps the orphans that sessions which did not end cleanly left behind:
 
 ```json
 "SessionStart": [{ "hooks": [{ "type": "command", "command": "\"C:/Users/<you>/.claude/bin/claude-statusline-rs.exe\" servers --kill --orphans", "timeout": 15 }] }],
