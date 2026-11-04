@@ -105,12 +105,16 @@ Nothing to set up: the segment reads the OS TCP listen table, so a server shows 
 claude-statusline-rs servers               # list this worktree's servers and the others, with cwd and command
 claude-statusline-rs servers --kill        # kill this worktree's server trees
 claude-statusline-rs servers --kill --all  # also kill other repos' dev servers (never Docker/WSL)
+claude-statusline-rs servers --kill --orphans  # kill orphaned dev servers anywhere; silent when there are none
 claude-statusline-rs servers --cwd <path>  # inspect another worktree
 ```
 
-To clean up when a session ends, add a `SessionEnd` hook; `--hook` takes the worktree from the hook's stdin JSON and does nothing without it:
+An **orphan** (Windows only) is a dev server whose ancestry breaks before it reaches a long-lived root (Explorer, a service host, or Claude): the shell, terminal or Claude session that started it is gone, for example after a crash or a closed terminal. The listing marks these `(orphan)`. Servers that a live session or an open terminal started are left alone. A server deliberately detached with `start` from a shell that has since closed also counts as an orphan.
+
+Two hooks clean up automatically. SessionEnd kills the ending session's own servers; `--hook` takes the worktree from the hook's stdin JSON and does nothing without it. SessionStart sweeps the orphans that sessions which did not end cleanly left behind:
 
 ```json
+"SessionStart": [{ "hooks": [{ "type": "command", "command": "\"C:/Users/<you>/.claude/bin/claude-statusline-rs.exe\" servers --kill --orphans", "timeout": 15 }] }],
 "SessionEnd": [{ "hooks": [{ "type": "command", "command": "\"C:/Users/<you>/.claude/bin/claude-statusline-rs.exe\" servers --kill --hook", "timeout": 15 }] }]
 ```
 

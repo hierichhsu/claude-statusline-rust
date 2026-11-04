@@ -28,6 +28,9 @@ pub enum Command {
         /// With --kill: also kill other repos' dev servers
         #[arg(long, requires = "kill")]
         all: bool,
+        /// With --kill: only kill orphaned dev servers (launcher gone), anywhere; prints nothing when there are none
+        #[arg(long, requires = "kill", conflicts_with_all = ["all", "hook", "cwd"])]
+        orphans: bool,
         /// Worktree to inspect (default: current directory)
         #[arg(long)]
         cwd: Option<String>,

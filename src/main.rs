@@ -19,8 +19,13 @@ fn main() {
         all,
         mut cwd,
         hook,
+        orphans,
     }) = cli.command
     {
+        if orphans {
+            kill_orphans();
+            return;
+        }
         if hook {
             let mut raw = String::new();
             io::stdin().read_to_string(&mut raw).unwrap_or(0);
@@ -109,6 +114,27 @@ fn main() {
     }
 }
 
+/// `servers --kill --orphans`: silent unless it kills something, since a
+/// SessionStart hook's stdout lands in Claude's context.
+fn kill_orphans() {
+    let Some(scan) = servers::scan() else {
+        return;
+    };
+    let mut done: Vec<u32> = Vec::new();
+    for l in scan.orphans() {
+        let top = l.top();
+        if done.contains(&top.pid) {
+            continue;
+        }
+        done.push(top.pid);
+        let n = scan.kill_tree(top.pid);
+        println!(
+            "killed orphaned dev server :{} (pid {}, {} process(es)) from {}",
+            l.port, top.pid, n, top.cwd
+        );
+    }
+}
+
 /// `servers`: list, or kill, the dev servers attributed to a worktree.
 fn servers_command(kill: bool, all: bool, cwd: Option<String>) {
     let cwd = cwd.unwrap_or_else(|| {
@@ -128,9 +154,10 @@ fn servers_command(kill: bool, all: bool, cwd: Option<String>) {
         let p = l.proc();
         let top = l.top();
         let cmd: String = top.cmd.chars().take(80).collect();
+        let mark = if l.orphan { " (orphan)" } else { "" };
         format!(
-            ":{:<6} pid {:<7} {:<8} {}\n           {}",
-            l.port, p.pid, p.name, top.cwd, cmd
+            ":{:<6} pid {:<7} {:<8} {}{}\n           {}",
+            l.port, p.pid, p.name, top.cwd, mark, cmd
         )
     };
     println!(

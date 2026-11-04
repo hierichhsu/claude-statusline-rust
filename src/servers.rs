@@ -16,6 +16,10 @@ const RUNTIMES: &[&str] = &[
 ];
 /// Own ports for containers/WSL: counted as "other", never attributed or killed.
 const COUNT_ONLY: &[&str] = &["com.docker.backend", "wslrelay"];
+/// Long-lived Windows processes: an ancestry that reaches one of these still has an owner.
+const ROOTS: &[&str] = &[
+    "explorer", "svchost", "services", "wininit", "winlogon", "sihost", "system", "claude",
+];
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Proc {
@@ -31,6 +35,8 @@ pub struct Listener {
     pub port: u16,
     /// Listener first, then each runtime ancestor (npm -> cmd -> vite ...).
     pub chain: Vec<Proc>,
+    /// Nobody owns it any more: its launching shell/terminal/Claude is gone.
+    pub orphan: bool,
 }
 
 impl Listener {
@@ -253,17 +259,57 @@ pub fn scan() -> Option<Scan> {
 
     let mut listeners = Vec::new();
     for &(port, pid) in &pairs {
-        let (chain, stopper) = &chains[&pid];
-        let chain: Vec<Proc> = chain.iter().map(|&p| to_proc(p)).collect();
+        let (pids, stopper) = &chains[&pid];
+        let chain: Vec<Proc> = pids.iter().map(|&p| to_proc(p)).collect();
         if chain.iter().any(is_claude) || stopper.map(to_proc).is_some_and(|s| is_claude(&s)) {
             continue; // Claude itself or one of its MCP servers
         }
-        listeners.push(Listener { port, chain });
+        let orphan = orphaned(&sys, *pids.last().unwrap());
+        listeners.push(Listener {
+            port,
+            chain,
+            orphan,
+        });
     }
     Some(Scan { listeners, sys })
 }
 
+/// True when the ancestry of `top` breaks before reaching a long-lived root
+/// (Explorer, a service host, Claude): the shell or terminal that started it is gone.
+/// shortcut: Windows only; Unix reparents orphans to pid 1, where real daemons also live.
+fn orphaned(sys: &System, top: Pid) -> bool {
+    if !cfg!(windows) {
+        return false;
+    }
+    let mut cur = top;
+    for _ in 0..32 {
+        let Some(p) = sys.process(cur) else {
+            return true;
+        };
+        let Some(parent) = p.parent().and_then(|pp| sys.process(pp)) else {
+            return true;
+        };
+        // Windows reuses pids: a "parent" started after its child is a stranger (0 = unreadable)
+        if parent.start_time() > p.start_time() && p.start_time() != 0 {
+            return true;
+        }
+        if ROOTS.contains(&base_name(&parent.name().to_string_lossy()).as_str()) {
+            return false;
+        }
+        cur = parent.pid();
+    }
+    false
+}
+
 impl Scan {
+    /// Orphaned dev servers anywhere on the machine that are safe to kill.
+    pub fn orphans(&self) -> Vec<&Listener> {
+        self.listeners
+            .iter()
+            .filter(|l| l.orphan && killable(l) && is_other_dev(l))
+            .collect()
+    }
+
     pub fn mine(&self, root: &Root) -> Vec<&Listener> {
         self.listeners.iter().filter(|l| belongs(l, root)).collect()
     }
@@ -326,7 +372,11 @@ mod tests {
     }
 
     fn listener(port: u16, chain: Vec<Proc>) -> Listener {
-        Listener { port, chain }
+        Listener {
+            port,
+            chain,
+            orphan: false,
+        }
     }
 
     fn root() -> Root {
@@ -441,6 +491,36 @@ mod tests {
         assert_eq!(r.path, "d:/github/app/.claude/worktrees/wt");
         assert!(r.nested.is_empty());
         assert_eq!(root_from_worktrees("c:/tmp", "").path, "c:/tmp");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn process_whose_launcher_exited_is_orphan() {
+        let me = Pid::from_u32(std::process::id());
+        // `start /b` leaves ping running after cmd exits
+        let mut cmd = std::process::Command::new("cmd")
+            .args(["/c", "start", "/b", "ping", "-n", "30", "127.0.0.1"])
+            .stdout(std::process::Stdio::null())
+            .spawn()
+            .unwrap();
+        let cmd_pid = Pid::from_u32(cmd.id());
+        cmd.wait().unwrap();
+        let mut sys = System::new().unwrap();
+        sys.refresh_processes_specifics(
+            ProcessesToUpdate::All,
+            true,
+            ProcessRefreshKind::nothing(),
+        );
+        let ping = sys
+            .processes()
+            .values()
+            .find(|p| p.parent() == Some(cmd_pid))
+            .expect("ping child");
+        let orphan = orphaned(&sys, ping.pid());
+        ping.kill();
+        assert!(orphan);
+        // this test runs under a live cargo/shell/terminal chain
+        assert!(!orphaned(&sys, me));
     }
 
     #[test]
