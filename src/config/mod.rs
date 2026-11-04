@@ -36,17 +36,12 @@ pub struct GitConfig {
     /// Append the worktree name when cwd is a linked git worktree.
     #[serde(default = "defaults::git_show_worktree")]
     pub show_worktree: bool,
-    /// Filename read from the worktree/repo root to display a dev server port.
-    /// Empty string disables port display.
-    #[serde(default = "defaults::git_port_file")]
-    pub port_file: String,
 }
 
 impl Default for GitConfig {
     fn default() -> Self {
         Self {
             show_worktree: defaults::git_show_worktree(),
-            port_file: defaults::git_port_file(),
         }
     }
 }
@@ -125,7 +120,7 @@ mod tests {
     fn test_default_config() {
         let cfg = Config::default();
         assert_eq!(cfg.general.separator, " │ ");
-        assert_eq!(cfg.segments.enabled.len(), 5);
+        assert_eq!(cfg.segments.enabled.len(), 6);
         assert_eq!(cfg.theme.name, "morandi");
         assert_eq!(cfg.usage.cache_ttl_secs, 60);
     }
@@ -144,6 +139,9 @@ name = "morandi"
 
 [usage]
 cache_ttl_secs = 120
+
+[git]
+port_file = ".dev-port" # removed option: old configs must still load
 "#;
         let cfg: Config = toml::from_str(toml_str).unwrap();
         assert_eq!(cfg.general.separator, " | ");
