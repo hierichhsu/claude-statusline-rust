@@ -333,7 +333,11 @@ pub fn session_pid() -> Option<u32> {
             ProcessRefreshKind::nothing().with_cmd(UpdateKind::Always),
         );
         let p = sys.process(cur)?;
-        let cmd: Vec<String> = p.cmd().iter().map(|a| a.to_string_lossy().into_owned()).collect();
+        let cmd: Vec<String> = p
+            .cmd()
+            .iter()
+            .map(|a| a.to_string_lossy().into_owned())
+            .collect();
         let proc_ = Proc {
             pid: cur.as_u32(),
             name: base_name(&p.name().to_string_lossy()),
