@@ -301,7 +301,63 @@ fn orphaned(sys: &System, top: Pid) -> bool {
     false
 }
 
+/// `ancestor` is in the live parent chain of `pid` (pid reuse breaks the chain, as in `orphaned`).
+fn descends(sys: &System, pid: Pid, ancestor: Pid) -> bool {
+    let mut cur = pid;
+    for _ in 0..64 {
+        let Some(p) = sys.process(cur) else {
+            return false;
+        };
+        let Some(parent) = p.parent().and_then(|pp| sys.process(pp)) else {
+            return false;
+        };
+        if parent.start_time() > p.start_time() && p.start_time() != 0 {
+            return false;
+        }
+        if parent.pid() == ancestor {
+            return true;
+        }
+        cur = parent.pid();
+    }
+    false
+}
+
+/// The Claude Code session this process runs under (hooks and tools are its children).
+pub fn session_pid() -> Option<u32> {
+    let mut sys = System::new().ok()?;
+    let mut cur = Pid::from_u32(std::process::id());
+    for _ in 0..32 {
+        sys.refresh_processes_specifics(
+            ProcessesToUpdate::Some(&[cur]),
+            false,
+            ProcessRefreshKind::nothing().with_cmd(UpdateKind::Always),
+        );
+        let p = sys.process(cur)?;
+        let cmd: Vec<String> = p.cmd().iter().map(|a| a.to_string_lossy().into_owned()).collect();
+        let proc_ = Proc {
+            pid: cur.as_u32(),
+            name: base_name(&p.name().to_string_lossy()),
+            cwd: String::new(),
+            cmd: norm(&cmd.join(" ")),
+            exe: String::new(),
+        };
+        if is_claude(&proc_) {
+            return Some(proc_.pid);
+        }
+        cur = p.parent()?;
+    }
+    None
+}
+
 impl Scan {
+    /// Listener trees started by the process `session` (a Claude session's tools).
+    pub fn started_by<'a>(&self, ls: Vec<&'a Listener>, session: u32) -> Vec<&'a Listener> {
+        let s = Pid::from_u32(session);
+        ls.into_iter()
+            .filter(|l| descends(&self.sys, Pid::from_u32(l.top().pid), s))
+            .collect()
+    }
+
     /// Orphaned dev servers anywhere on the machine that are safe to kill.
     pub fn orphans(&self) -> Vec<&Listener> {
         self.listeners
@@ -519,8 +575,32 @@ mod tests {
         let orphan = orphaned(&sys, ping.pid());
         ping.kill();
         assert!(orphan);
+        // the exited cmd was ping's parent, not this test process
+        assert!(!descends(&sys, ping.pid(), me));
         // this test runs under a live cargo/shell/terminal chain
         assert!(!orphaned(&sys, me));
+    }
+
+    #[test]
+    fn child_descends_from_this_process_but_not_the_reverse() {
+        let me = Pid::from_u32(std::process::id());
+        let mut child = std::process::Command::new("ping")
+            .args(["-n", "30", "127.0.0.1"])
+            .stdout(std::process::Stdio::null())
+            .spawn()
+            .unwrap();
+        let kid = Pid::from_u32(child.id());
+        let mut sys = System::new().unwrap();
+        sys.refresh_processes_specifics(
+            ProcessesToUpdate::All,
+            true,
+            ProcessRefreshKind::nothing(),
+        );
+        let down = descends(&sys, kid, me);
+        let up = descends(&sys, me, kid);
+        child.kill().unwrap();
+        assert!(down);
+        assert!(!up);
     }
 
     #[test]
