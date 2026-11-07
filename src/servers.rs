@@ -411,9 +411,32 @@ impl Scan {
     }
 }
 
-/// Distinct sorted ports.
+/// Sockets a server opens for itself, not for a browser: the node inspector and
+/// OS-assigned ports (Windows dynamic range) such as workerd/miniflare loopbacks.
+fn internal_port(port: u16) -> bool {
+    port == 9229 || port >= 49152
+}
+
+/// Distinct sorted ports a person would open, per server tree. A tree with only
+/// internal ports still shows its lowest one, so a running server never disappears.
 pub fn ports(ls: &[&Listener]) -> Vec<u16> {
-    let set: BTreeSet<u16> = ls.iter().map(|l| l.port).collect();
+    let mut trees: HashMap<u32, BTreeSet<u16>> = HashMap::new();
+    for l in ls {
+        trees.entry(l.top().pid).or_default().insert(l.port);
+    }
+    let mut set = BTreeSet::new();
+    for tree in trees.values() {
+        let public: Vec<u16> = tree
+            .iter()
+            .copied()
+            .filter(|&p| !internal_port(p))
+            .collect();
+        if public.is_empty() {
+            set.extend(tree.first());
+        } else {
+            set.extend(public);
+        }
+    }
     set.into_iter().collect()
 }
 
@@ -437,6 +460,19 @@ mod tests {
             chain,
             orphan: false,
         }
+    }
+
+    #[test]
+    fn ports_hide_inspector_and_ephemeral_but_keep_a_lone_server() {
+        let at = |port, pid| {
+            let mut p = proc("node", "", "");
+            p.pid = pid;
+            listener(port, vec![p])
+        };
+        let astro = [at(4321, 1), at(9229, 1), at(58128, 1), at(63462, 1)];
+        let lone = at(60001, 2);
+        let all: Vec<&Listener> = astro.iter().chain([&lone]).collect();
+        assert_eq!(ports(&all), vec![4321, 60001]);
     }
 
     fn root() -> Root {
